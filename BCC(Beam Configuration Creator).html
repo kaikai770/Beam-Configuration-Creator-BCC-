@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Beam Configurator Creator</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+  <style>
+    :root {
+      --primary-color: #9b59b6; /* Changed to purple */
+      --background-color: #1a1d21;
+      --surface-color: #2c313a;
+      --text-color: #e4e6eb;
+      --text-muted-color: #b0b3b8;
+      --border-color: #444a57;
+      --success-color: #28a745;
+      --error-color: #dc3545;
+      --font-family: 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+    }
+
+    body {
+      font-family: var(--font-family);
+      background-color: var(--background-color);
+      color: var(--text-color);
+      margin: 0;
+      padding: 2rem;
+      display: flex;
+      justify-content: center;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 1200px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+    }
+
+    .header {
+      grid-column: 1 / -1;
+      text-align: left;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .header h1 {
+      margin: 0;
+      color: var(--primary-color);
+      font-weight: 600;
+    }
+
+    .header p {
+        margin: 0.25rem 0 0;
+        color: var(--text-muted-color);
+    }
+
+    .panel {
+      background-color: var(--surface-color);
+      border-radius: 8px;
+      padding: 1.5rem;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    .input-panel {}
+
+    .output-panel {
+      display: flex;
+      flex-direction: column;
+    }
+
+    h2 {
+      margin-top: 0;
+      font-weight: 500;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 0.75rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .group {
+      margin-bottom: 1.5rem;
+    }
+    
+    .group fieldset {
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 1rem;
+    }
+
+    .group legend {
+      padding: 0 0.5rem;
+      color: var(--primary-color);
+      font-weight: 500;
+    }
+
+    .grid-inputs {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 1rem;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 0.5rem;
+      color: var(--text-muted-color);
+      font-size: 0.9rem;
+    }
+
+    input[type="text"],
+    input[type="number"] {
+      width: 100%;
+      padding: 0.75rem;
+      background-color: var(--background-color);
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      color: var(--text-color);
+      font-size: 1rem;
+      box-sizing: border-box;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    input[type="text"]:focus,
+    input[type="number"]:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px rgba(155, 89, 182, 0.2); /* Changed to purple glow */
+    }
+
+    .upload-area {
+      border: 2px dashed var(--border-color);
+      border-radius: 6px;
+      padding: 2rem;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.3s, background-color 0.3s;
+    }
+
+    .upload-area.drag-over {
+      border-color: var(--primary-color);
+      background-color: rgba(155, 89, 182, 0.1); /* Changed to purple */
+    }
+
+    .upload-area p {
+        margin: 0;
+        color: var(--text-muted-color);
+    }
+
+    .upload-area span {
+        color: var(--primary-color);
+        font-weight: 500;
+    }
+
+    #zipFile {
+      display: none;
+    }
+
+    #file-name {
+        margin-top: 1rem;
+        color: var(--success-color);
+        font-style: italic;
+    }
+
+    button {
+      width: 100%;
+      padding: 0.85rem 1rem;
+      background-color: var(--primary-color);
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      font-size: 1.1rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background-color 0.2s, transform 0.1s;
+    }
+
+    button:hover {
+      background-color: #8e44ad; /* Darker purple */
+    }
+    
+    button:active {
+        transform: scale(0.98);
+    }
+
+    #output {
+      flex-grow: 1;
+      width: 100%;
+      background-color: #1a1d21;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      color: var(--text-color);
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 0.9rem;
+      padding: 1rem;
+      box-sizing: border-box;
+      resize: none;
+    }
+    
+    @media (max-width: 900px) {
+        .container {
+            grid-template-columns: 1fr;
+        }
+    }
+
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <header class="header">
+      <h1>Beam Configurator Creator</h1>
+      <p>Generate BeamNG vehicle .json files from .pc configuration files.</p>
+    </header>
+
+    <div class="panel input-panel">
+      <div class="group">
+        <fieldset>
+          <legend>Core</legend>
+          <label for="zipFile" id="upload-label">
+            <div id="upload-area" class="upload-area">
+                <p>Drag & drop your .zip file here, or <span>click to browse</span>.</p>
+            </div>
+          </label>
+          <input type="file" id="zipFile" accept=".zip">
+          <p id="file-name"></p>
+          
+          <label for="configType" style="margin-top: 1rem;">Config Type</label>
+          <input type="text" id="configType" value="Factory">
+        </fieldset>
+      </div>
+
+      <div class="group">
+        <fieldset>
+          <legend>Optional Vehicle Specs (Overrides)</legend>
+          <div class="grid-inputs">
+            <div>
+              <label for="power">Power (hp)</label>
+              <input type="number" id="power" placeholder="e.g. 725">
+            </div>
+            <div>
+              <label for="torque">Torque (Nm)</label>
+              <input type="number" id="torque" placeholder="e.g. 1000">
+            </div>
+            <div>
+              <label for="weight">Weight (kg)</label>
+              <input type="number" id="weight" placeholder="e.g. 1500">
+            </div>
+            <div>
+              <label for="topSpeed">Top Speed (km/h)</label>
+              <input type="number" id="topSpeed" placeholder="e.g. 100">
+            </div>
+            <div>
+              <label for="propulsion">Propulsion</label>
+              <input type="text" id="propulsion" placeholder="e.g. ICE">
+            </div>
+            <div>
+              <label for="induction">Induction</label>
+              <input type="text" id="induction" placeholder="e.g. Supercharged">
+            </div>
+            <div>
+              <label for="drivetrain">Drivetrain</label>
+              <input type="text" id="drivetrain" placeholder="e.g. RWD">
+            </div>
+            <div>
+              <label for="fuelType">Fuel Type</label>
+              <input type="text" id="fuelType" placeholder="e.g. Gasoline">
+            </div>
+            <div>
+              <label for="transmission">Transmission</label>
+              <input type="text" id="transmission" placeholder="e.g. Manual">
+            </div>
+             <div>
+              <label for="powerPeakRPM">Power Peak RPM</label>
+              <input type="text" id="powerPeakRPM" placeholder="e.g. 5250 - 6000">
+            </div>
+            <div>
+              <label for="torquePeakRPM">Torque Peak RPM</label>
+              <input type="text" id="torquePeakRPM" placeholder="e.g. 4250 - 4950">
+            </div>
+            <div>
+              <label for="offroadScore">Off-Road Score</label>
+              <input type="number" id="offroadScore" placeholder="e.g. 30">
+            </div>
+          </div>
+        </fieldset>
+      </div>
+
+      <button onclick="processZip()">Generate & Download JSONs</button>
+    </div>
+
+    <div class="panel output-panel">
+        <h2>Output Log</h2>
+        <textarea id="output" readonly placeholder="Awaiting file processing..."></textarea>
+    </div>
+
+  </div>
+
+  <script>
+    const uploadArea = document.getElementById('upload-area');
+    const zipInput = document.getElementById('zipFile');
+    const fileNameDisplay = document.getElementById('file-name');
+
+    // Drag and Drop functionality
+    uploadArea.addEventListener('dragover', (event) => {
+        event.preventDefault();
+        uploadArea.classList.add('drag-over');
+    });
+
+    uploadArea.addEventListener('dragleave', () => {
+        uploadArea.classList.remove('drag-over');
+    });
+
+    uploadArea.addEventListener('drop', (event) => {
+        event.preventDefault();
+        uploadArea.classList.remove('drag-over');
+        const files = event.dataTransfer.files;
+        if (files.length) {
+            zipInput.files = files;
+            fileNameDisplay.textContent = `File selected: ${files[0].name}`;
+        }
+    });
+    
+    zipInput.addEventListener('change', () => {
+        if (zipInput.files.length) {
+            fileNameDisplay.textContent = `File selected: ${zipInput.files[0].name}`;
+        }
+    });
+
+    function getRandomDescription() {
+      const descriptions = [
+        "Factory-tuned for spirited weekend drives", "Sleeper looks, track-day soul",
+        "Built to cruise, but bites when provoked", "A torque monster wrapped in subtle styling",
+        "Optimized for canyon carving and late-night runs", "Classic silhouette, modern aggression",
+        "Engineered for balance, not just brute force", "A daily driver with a rebellious streak",
+        "Refined, but ready to throw down", "The kind of car that earns respect sideways",
+        "Understated, until the boost kicks in", "Perfect for autobahn sprints and backroad battles",
+        "A tuner’s dream with factory reliability", "Designed to dominate time trials and turn heads",
+        "Where luxury meets lunacy"
+      ];
+      return descriptions[Math.floor(Math.random() * descriptions.length)];
+    }
+
+    async function processZip() {
+      const configType = document.getElementById('configType').value || "Factory";
+      const output = document.getElementById('output');
+      output.value = "Processing, please wait...";
+
+      // Optional inputs
+      const power = parseFloat(document.getElementById('power').value);
+      const torque = parseFloat(document.getElementById('torque').value);
+      const weight = parseFloat(document.getElementById('weight').value);
+      const topSpeed = parseFloat(document.getElementById('topSpeed').value);
+      const propulsion = document.getElementById('propulsion').value || "ICE";
+      const induction = document.getElementById('induction').value || "Supercharged";
+      const drivetrain = document.getElementById('drivetrain').value || "RWD";
+      const fuelType = document.getElementById('fuelType').value || "Gasoline";
+      const transmission = document.getElementById('transmission').value || "Manual";
+      const powerPeakRPM = document.getElementById('powerPeakRPM').value || "5250 - 6000";
+      const torquePeakRPM = document.getElementById('torquePeakRPM').value || "4250 - 4950";
+      const offroadScore = parseFloat(document.getElementById('offroadScore').value);
+
+      if (!zipInput.files.length) {
+        output.value = "Error: Please upload a ZIP file first.";
+        return;
+      }
+
+      const zip = new JSZip();
+      const zipData = await zip.loadAsync(zipInput.files[0]);
+      const jsonZip = new JSZip();
+      const preview = [];
+
+      for (const path in zipData.files) {
+        const file = zipData.files[path];
+        if (!file.dir && file.name.toLowerCase().endsWith(".pc")) {
+          const configName = file.name.split("/").pop().replace(/\.pc$/i, "");
+
+          const finalPower = isNaN(power) ? 725 : power;
+          const finalTorque = isNaN(torque) ? 1000 : torque; /* Changed */
+          const finalWeight = isNaN(weight) ? 1500 : weight; /* Changed */
+          const finalTopSpeed = isNaN(topSpeed) ? 100 : topSpeed; /* Changed */
+          const finalOffroadScore = isNaN(offroadScore) ? 30 : offroadScore; /* Changed */
+
+          const weightPowerRatio = finalPower > 0 ? +(finalWeight / finalPower).toFixed(6) : null;
+
+          const json = {
+            "Body Style": "SEDAN",
+            "BoundingBox": [
+              [-0.816, -1.883, -0.1394],
+              [1.416, 2.754, 1.049]
+            ],
+            "Braking G": 1.263,
+            "Config Type": configType,
+            "Configuration": configName,
+            "Description": getRandomDescription(),
+            "Drivetrain": drivetrain,
+            "Fuel Type": fuelType,
+            "Induction Type": induction,
+            "Off-Road Score": finalOffroadScore,
+            "Power": finalPower,
+            "Population": Math.floor(Math.random() * (5000 - 350 + 1)) + 350,
+            "PowerPeakRPM": powerPeakRPM,
+            "Propulsion": propulsion,
+            "Top Speed": finalTopSpeed,
+            "Torque": finalTorque,
+            "TorquePeakRPM": torquePeakRPM,
+            "Transmission": transmission,
+            "Value": Math.floor(Math.random() * (80000 - 20000 + 1)) + 20000,
+            "Weight": finalWeight,
+            "Weight/Power": weightPowerRatio
+          };
+
+          const jsonText = JSON.stringify(json, null, 2);
+          jsonZip.file(`${configName}.json`, jsonText);
+          preview.push(`✔ Successfully generated: ${configName}.json`);
+        }
+      }
+
+      if (preview.length) {
+        const originalZipName = zipInput.files[0].name.replace(/\.zip$/i, '');
+        const blob = await jsonZip.generateAsync({ type: "blob" });
+        saveAs(blob, `${originalZipName}_JSONs.zip`);
+
+        output.value = `Generation complete. Download started.\n\nFiles included:\n---------------------\n${preview.join("\n")}`;
+      } else {
+        output.value = "No .pc files were found in the uploaded ZIP file.";
+      }
+    }
+  </script>
+</body>
+</html>
