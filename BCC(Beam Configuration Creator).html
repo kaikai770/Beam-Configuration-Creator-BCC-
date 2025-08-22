@@ -372,13 +372,18 @@
       for (const path in zipData.files) {
         const file = zipData.files[path];
         if (!file.dir && file.name.toLowerCase().endsWith(".pc")) {
+          // Get original config name, respecting capitalization, without the .pc extension
           const configName = file.name.split("/").pop().replace(/\.pc$/i, "");
+          
+          // Create the new filename: prefix with "info_", and replace spaces with underscores
+          const newFileNameBase = "info_" + configName.replace(/ /g, "_");
+          const newJsonFileName = `${newFileNameBase}.json`;
 
           const finalPower = isNaN(power) ? 725 : power;
-          const finalTorque = isNaN(torque) ? 1000 : torque; /* Changed */
-          const finalWeight = isNaN(weight) ? 1500 : weight; /* Changed */
-          const finalTopSpeed = isNaN(topSpeed) ? 100 : topSpeed; /* Changed */
-          const finalOffroadScore = isNaN(offroadScore) ? 30 : offroadScore; /* Changed */
+          const finalTorque = isNaN(torque) ? 1000 : torque;
+          const finalWeight = isNaN(weight) ? 1500 : weight;
+          const finalTopSpeed = isNaN(topSpeed) ? 100 : topSpeed;
+          const finalOffroadScore = isNaN(offroadScore) ? 30 : offroadScore;
 
           const weightPowerRatio = finalPower > 0 ? +(finalWeight / finalPower).toFixed(6) : null;
 
@@ -390,7 +395,7 @@
             ],
             "Braking G": 1.263,
             "Config Type": configType,
-            "Configuration": configName,
+            "Configuration": configName, // Keep original name for the JSON content
             "Description": getRandomDescription(),
             "Drivetrain": drivetrain,
             "Fuel Type": fuelType,
@@ -410,8 +415,10 @@
           };
 
           const jsonText = JSON.stringify(json, null, 2);
-          jsonZip.file(`${configName}.json`, jsonText);
-          preview.push(`✔ Successfully generated: ${configName}.json`);
+          // Use the new, formatted filename for the file inside the zip
+          jsonZip.file(newJsonFileName, jsonText);
+          // Also use the new filename in the output log
+          preview.push(`✔ Successfully generated: ${newJsonFileName}`);
         }
       }
 
