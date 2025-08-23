@@ -30,3 +30,7 @@ Customizable to your liking
 - Debugging: Fix missing dealership entries.
 - Automation: Batch-convert large mod libraries.
 - Cleanup: Standardize old .PC configs for modern use.
+
+
+[Ko-fi.com/sockieee](https://ko-fi.com/sockieee)
+if youd like to donate to me :]
